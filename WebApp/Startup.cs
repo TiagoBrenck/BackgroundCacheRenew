@@ -74,6 +74,10 @@ namespace WebApp
 
             services.AddDistributedSqlServerCache(options =>
             {
+                /*
+                    dotnet tool install --global dotnet-sql-cache
+                    dotnet sql-cache create "Data Source=(localdb)\MSSQLLocalDB;Initial Catalog=MY_TOKEN_CACHE_DATABASE;Integrated Security=True;" dbo TokenCache    
+                */
                 options.ConnectionString = Configuration.GetConnectionString("TokenCacheDbConnStr");
                 options.SchemaName = "dbo";
                 options.TableName = "TokenCache";
