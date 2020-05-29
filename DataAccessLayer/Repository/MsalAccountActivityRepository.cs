@@ -20,8 +20,8 @@ namespace DataAccessLayer.Repository
         {
             DateTime thresholdDate = DateTime.Now.AddMinutes(-15);
             return await _dbContext.MsalAccountActivities
-                .Where(x => x.FailedToRefresh == false
-                        && x.LastActivity <= thresholdDate)
+                .Where(x => x.FailedToRefresh == false)
+                        //&& x.LastActivity <= thresholdDate)
                 .ToListAsync();
         }
 
