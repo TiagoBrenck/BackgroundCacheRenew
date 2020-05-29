@@ -8,7 +8,7 @@ With this approach, the daemon app can acquire an access token silently and cons
 
 ![Overview](./diagram.png)
 
-## Required configurations
+## Required configuration
 
 This sample is using SQL token cache leveraging the library **Microsoft.Extensions.Caching.Distributed**, so to create the necessary table, run the following command on the Package Manager Console, updating the connection string accordingly to your development environment:
 
