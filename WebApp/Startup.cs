@@ -17,7 +17,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Graph;
+using Microsoft.Identity.Client;
 using Microsoft.Identity.Web;
+using Microsoft.Identity.Web.TokenCacheProviders;
 using Microsoft.Identity.Web.TokenCacheProviders.Distributed;
 using Microsoft.Identity.Web.UI;
 
@@ -48,24 +50,37 @@ namespace WebApp
             });
 
             services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-                .AddSignIn("AzureAD", Configuration, options =>
+                .AddSignIn(options =>
                 {
                     Configuration.Bind("AzureAD", options);
                     options.Events.OnAuthorizationCodeReceived = async context =>
                     {
                         var tokenAcquisition = context.HttpContext.RequestServices.GetRequiredService<ITokenAcquisition>();
-                        var app = tokenAcquisition.GetOrBuildConfidentialClientApplication();
+                        var cacheProvider = context.HttpContext.RequestServices.GetRequiredService<IMsalTokenCacheProvider>();
 
-                        var account = (await app.GetAccountsAsync())
+                        var app = ConfidentialClientApplicationBuilder.Create(options.ClientId)
+                                    .WithAuthority(options.Authority)
+                                    .WithClientSecret(options.ClientSecret)
+                                    .Build();
+
+                        await cacheProvider.InitializeAsync(app.UserTokenCache);
+
+                        var account = (await app.GetAccountAsync(context.HttpContext.User.GetMsalAccountId()));
+
+                        if (account == null)
+                        {
+                            // Dealing with guest users
+                            account = (await app.GetAccountsAsync())
                             .Where(x => x.Username == context.HttpContext.User.GetLoginHint())
                             .FirstOrDefault();
+                        }
 
                         var accountActivity = new MsalAccountActivity(account, context.HttpContext.User.GetMsalAccountId());
 
                         var repo = context.HttpContext.RequestServices.GetRequiredService<IMsalAccountActivityRepository>();
                         await repo.UpsertActivity(accountActivity);
                     };
-                });
+                }, options => { Configuration.Bind("AzureAD", options); });
 
             // Token acquisition service based on MSAL.NET
             // and chosen token cache implementation
