@@ -6,7 +6,7 @@ With this approach, the daemon app can acquire an access token silently and cons
 
 We are considering that the applications are multi-tenant, but the concept also applies for single-tenant apps.
 
-# Example 2-Background process using MSAL cache from an On-Behalf-Of flow web api
+# Example 2-Background process using MSAL cache from an On-Behalf-Of flow call on a web api
 
 The web api sample shows the same concept as the web app, however the access token been reused is from an OBO call to Graph that happens on the web api.
 
