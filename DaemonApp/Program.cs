@@ -62,6 +62,8 @@ namespace DaemonApp
 
             IConfidentialClientApplication app;
 
+            // For each IAccount, we need to build a new ConfidentialClientApplication, giving the cache key to the token cache provider,
+            // otherwise it wouldn't be able to find which cache key to use since each interation is for a different user.
             foreach (var activity in accountsToRefresh)
             {
                 app = await GetConfidentialClientApplication(config, activity.CacheKey);
@@ -83,7 +85,8 @@ namespace DaemonApp
                 }
                 catch (MsalUiRequiredException ex)
                 {
-                    //Should we delete this UserTokenActivity in this case?
+                    // Should we delete this UserTokenActivity in this case, since it needs interaction and the daemon app will not be able to
+                    // acquire the token silently?
 
                     activity.FailedToRefresh = true;
                     await repository.UpsertActivity(activity);

@@ -17,8 +17,6 @@ namespace DaemonApp
         /// or a domain name associated with the tenant
         /// - or 'organizations' (for a multi-tenant application)
         /// </summary>
-        public string Domain { get; set; }
-
         public string TenantId { get; set; }
 
         /// <summary>
@@ -33,7 +31,7 @@ namespace DaemonApp
         {
             get
             {
-                return String.Format(CultureInfo.InvariantCulture, Instance, Domain);
+                return String.Format(CultureInfo.InvariantCulture, Instance, TenantId);
             }
         }
 
