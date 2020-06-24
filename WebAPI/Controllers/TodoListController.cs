@@ -61,7 +61,7 @@ namespace WebAPI.Controllers
             HttpContext.VerifyUserHasAnyAcceptedScope(scopeRequiredByApi);
             string owner = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             string ownerName;
-#if ENABLE_OBO
+
             // This is a synchronous call, so that the clients know, when they call Get, that the 
             // call to the downstream API (Microsoft Graph) has completed.
             try
@@ -82,7 +82,6 @@ namespace WebAPI.Controllers
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.BadRequest;
                 await HttpContext.Response.WriteAsync("An error occurred while calling the downstream API\n" + ex.Message);
             }
-#endif
 
         }
 
@@ -93,6 +92,7 @@ namespace WebAPI.Controllers
             // we use MSAL.NET to get a token to call the API On Behalf Of the current user
             try
             {
+                var tenant = HttpContext.User.GetTenantId();
                 string accessToken = await _tokenAcquisition.GetAccessTokenForUserAsync(scopes);
                 dynamic me = await CallGraphApiOnBehalfOfUser(accessToken);
                 return me.UserPrincipalName;

@@ -67,14 +67,6 @@ namespace WebApp
 
                         var account = (await app.GetAccountAsync(context.HttpContext.User.GetMsalAccountId()));
 
-                        if (account == null)
-                        {
-                            // Dealing with guest users
-                            account = (await app.GetAccountsAsync())
-                            .Where(x => x.Username == context.HttpContext.User.GetLoginHint())
-                            .FirstOrDefault();
-                        }
-
                         var accountActivity = new MsalAccountActivity(account, context.HttpContext.User.GetMsalAccountId());
 
                         var repo = context.HttpContext.RequestServices.GetRequiredService<IMsalAccountActivityRepository>();
