@@ -71,8 +71,8 @@ namespace WebAPI
 
                     await cacheProvider.InitializeAsync(app.UserTokenCache);
 
-                    // Bearer token from the client app, stored by Microsoft.Identity.Web method AddProtectedWebApiCallsProtectedWebApi()
-                    var bearerToken = context.HttpContext.Items["JwtSecurityTokenUsedToCallWebAPI"] as JwtSecurityToken;
+                    // Bearer token from the client app, used as cache key
+                    var bearerToken = context.SecurityToken as JwtSecurityToken;
 
                     // It only gets an IAccount after a Graph call has been made
                     var accounts = await app.GetAccountsAsync().ConfigureAwait(false);
