@@ -17,8 +17,6 @@ namespace DataAccessLayer.Entities
             AccountObjectId = account.HomeAccountId.ObjectId;
             AccountIdentifier = account.HomeAccountId.Identifier;
             AccountTenantId = account.HomeAccountId.TenantId;
-            Username = account.Username;
-            Environment = account.Environment;
             LastActivity = DateTime.Now;
         }
 
@@ -27,8 +25,8 @@ namespace DataAccessLayer.Entities
         public string AccountObjectId { get; set; }
         public string AccountIdentifier { get; set; }
         public string AccountTenantId { get; set; }
-        public string Username { get; set; }
-        public string Environment { get; set; }
+        //public string Username { get; set; }
+        //public string Environment { get; set; }
         public DateTime LastActivity { get; set; }
         public bool FailedToRefresh { get; set; }
     }

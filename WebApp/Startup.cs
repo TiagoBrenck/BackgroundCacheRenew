@@ -40,6 +40,10 @@ namespace WebApp
             services.AddDbContext<CacheDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("TokenCacheDbConnStr")));
             services.AddScoped<IMsalAccountActivityRepository, MsalAccountActivityRepository>();
 
+            services.AddSingleton<IMsalTokenCacheProvider, IntegratedTokenCacheAdapter>();
+            services.AddDistributedMemoryCache();
+            services.AddHttpContextAccessor();
+
             services.Configure<CookiePolicyOptions>(options =>
             {
                 // This lambda determines whether user consent for non-essential cookies is needed for a given request.
@@ -50,34 +54,37 @@ namespace WebApp
             });
 
             services.AddAuthentication(OpenIdConnectDefaults.AuthenticationScheme)
-                .AddSignIn(options =>
-                {
-                    Configuration.Bind("AzureAD", options);
-                    options.Events.OnAuthorizationCodeReceived = async context =>
-                    {
-                        var tokenAcquisition = context.HttpContext.RequestServices.GetRequiredService<ITokenAcquisition>();
-                        var cacheProvider = context.HttpContext.RequestServices.GetRequiredService<IMsalTokenCacheProvider>();
+                .AddMicrosoftWebApp(Configuration)
+                .AddMicrosoftWebAppCallsWebApi(Configuration, new string[] { Constants.ScopeUserRead });
 
-                        var app = ConfidentialClientApplicationBuilder.Create(options.ClientId)
-                                    .WithAuthority(options.Authority)
-                                    .WithClientSecret(options.ClientSecret)
-                                    .Build();
+                //.AddSignIn(options =>
+                //{
+                //    Configuration.Bind("AzureAD", options);
+                //    //options.Events.OnAuthorizationCodeReceived = async context =>
+                //    //{
+                //    //    var tokenAcquisition = context.HttpContext.RequestServices.GetRequiredService<ITokenAcquisition>();
+                //    //    var cacheProvider = context.HttpContext.RequestServices.GetRequiredService<IMsalTokenCacheProvider>();
 
-                        await cacheProvider.InitializeAsync(app.UserTokenCache);
+                //    //    var app = ConfidentialClientApplicationBuilder.Create(options.ClientId)
+                //    //                .WithAuthority(options.Authority)
+                //    //                .WithClientSecret(options.ClientSecret)
+                //    //                .Build();
 
-                        var account = (await app.GetAccountAsync(context.HttpContext.User.GetMsalAccountId()));
+                //    //    await cacheProvider.InitializeAsync(app.UserTokenCache);
 
-                        var accountActivity = new MsalAccountActivity(account, context.HttpContext.User.GetMsalAccountId());
+                //    //    var account = (await app.GetAccountAsync(context.HttpContext.User.GetMsalAccountId()));
 
-                        var repo = context.HttpContext.RequestServices.GetRequiredService<IMsalAccountActivityRepository>();
-                        await repo.UpsertActivity(accountActivity);
-                    };
-                }, options => { Configuration.Bind("AzureAD", options); });
+                //    //    var accountActivity = new MsalAccountActivity(account, context.HttpContext.User.GetMsalAccountId());
+
+                //    //    var repo = context.HttpContext.RequestServices.GetRequiredService<IMsalAccountActivityRepository>();
+                //    //    await repo.UpsertActivity(accountActivity);
+                //    //};
+                //}, options => { Configuration.Bind("AzureAD", options); });
 
             // Token acquisition service based on MSAL.NET
             // and chosen token cache implementation
-            services.AddWebAppCallsProtectedWebApi(Configuration, new string[] { Constants.ScopeUserRead })
-                .AddDistributedTokenCaches();
+            //services.AddWebAppCallsProtectedWebApi(Configuration, new string[] { Constants.ScopeUserRead });
+                //.AddDistributedTokenCaches();
 
             services.AddDistributedSqlServerCache(options =>
             {
@@ -89,6 +96,8 @@ namespace WebApp
                 options.SchemaName = "dbo";
                 options.TableName = "TokenCache";
             });
+
+            
 
             services.AddControllersWithViews(options =>
             {

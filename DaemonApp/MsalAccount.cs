@@ -11,8 +11,8 @@ namespace DaemonApp
 
         public MsalAccount(string userName, string environment, string objectId, string tenantId)
         {
-            Username = userName;
-            Environment = environment;
+            //Username = userName;
+            //Environment = environment;
             HomeAccountId = new AccountId($"{objectId}.{tenantId}", objectId, tenantId);
         }
 

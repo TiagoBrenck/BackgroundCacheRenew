@@ -1,9 +1,10 @@
 ﻿using DataAccessLayer;
 using DataAccessLayer.Repository;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Identity.Client;
+using Microsoft.Identity.Web.TokenCacheProviders;
+using Microsoft.Identity.Web.TokenCacheProviders.Distributed;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -32,6 +33,7 @@ namespace DaemonApp
                     })
                     .AddDbContext<CacheDbContext>(options => options.UseSqlServer(config.TokenCacheDbConnStr))
                     .AddScoped<IMsalAccountActivityRepository, MsalAccountActivityRepository>()
+                    .AddSingleton<IMsalTokenCacheProvider, MsalDistributedTokenCacheAdapter>()
                     .BuildServiceProvider();
 
                 while (true)
@@ -60,17 +62,14 @@ namespace DaemonApp
 
             Console.WriteLine($"Refreshing activities...");
 
-            IConfidentialClientApplication app;
+            IConfidentialClientApplication app = await GetConfidentialClientApplication(config);
 
-            // For each IAccount, we need to build a new ConfidentialClientApplication, giving the cache key to the token cache provider,
-            // otherwise it wouldn't be able to find which cache key to use since each interation is for a different user.
+            // For each record, hydrate IAccount with the values saved on the table, and call AcquireTokenSilent for this account.
             foreach (var activity in accountsToRefresh)
             {
-                app = await GetConfidentialClientApplication(config, activity.CacheKey);
+                 
                 var account = new MsalAccount
                 {
-                    Environment = activity.Environment,
-                    Username = activity.Username,
                     HomeAccountId = new AccountId(
                         activity.AccountIdentifier,
                         activity.AccountObjectId,
@@ -92,7 +91,7 @@ namespace DaemonApp
                     await repository.UpsertActivity(activity);
 
                     Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine($"Account {activity.Username} failed to refresh.");
+                    Console.WriteLine($"Account {activity.AccountIdentifier} failed to refresh.");
                     Console.ResetColor();
                 }
                 catch (Exception ex)
@@ -106,18 +105,16 @@ namespace DaemonApp
             Console.ResetColor();
         }
 
-        private static async Task<IConfidentialClientApplication> GetConfidentialClientApplication(AuthenticationConfig config, string cacheKey)
+        private static async Task<IConfidentialClientApplication> GetConfidentialClientApplication(AuthenticationConfig config)
         {
             var app = ConfidentialClientApplicationBuilder.Create(config.ClientId)
                 .WithClientSecret(config.ClientSecret)
                 .WithAuthority(new Uri(config.Authority))
                 .Build();
 
-            var distributedCache = _serviceProvider.GetService<IDistributedCache>();
+            var msalCache = _serviceProvider.GetService<IMsalTokenCacheProvider>();
 
-            MsalSqlTokenCacheProvider cacheProvider = new MsalSqlTokenCacheProvider(distributedCache, cacheKey);
-
-            await cacheProvider.InitializeAsync(app.UserTokenCache);
+            await msalCache.InitializeAsync(app.UserTokenCache);
 
             return app;
 

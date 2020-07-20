@@ -36,59 +36,61 @@ namespace WebAPI
             services.AddDbContext<CacheDbContext>(options => options.UseSqlServer(Configuration.GetConnectionString("TokenCacheDbConnStr")));
             services.AddScoped<IMsalAccountActivityRepository, MsalAccountActivityRepository>();
 
+            services.AddSingleton<IMsalTokenCacheProvider, IntegratedTokenCacheAdapter>();
+            services.AddDistributedMemoryCache();
+            services.AddHttpContextAccessor();
+
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-                .AddProtectedWebApi(Configuration);
+                .AddMicrosoftWebApi(Configuration)
+                .AddMicrosoftWebApiCallsWebApi(Configuration);
 
-            services.AddProtectedWebApiCallsProtectedWebApi(Configuration)
-                    .AddDistributedTokenCaches();
+            //services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options => 
+            //{
+            //    Configuration.Bind("AzureAd", options);
+            //    var existingHandler = options.Events.OnTokenValidated; // handler from Microsoft.Identity.Web
 
-            services.Configure<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme, options => 
-            {
-                Configuration.Bind("AzureAd", options);
-                var existingHandler = options.Events.OnTokenValidated; // handler from Microsoft.Identity.Web
+            //    // NOTE: This event happens before the request reaches the ActionResult. Thus, it will only be able to acquire an IAccount 
+            //    // after the first Graph call is made.
+            //    options.Events.OnTokenValidated = async context =>
+            //    {
+            //        // Execute Microsoft.Identity.Web event handler first, so it saves the Bearer token in the HttpContext items.
+            //        // We need the Bearer token to find the cache key.
+            //        await existingHandler(context).ConfigureAwait(false);
 
-                // NOTE: This event happens before the request reaches the ActionResult. Thus, it will only be able to acquire an IAccount 
-                // after the first Graph call is made.
-                options.Events.OnTokenValidated = async context =>
-                {
-                    // Execute Microsoft.Identity.Web event handler first, so it saves the Bearer token in the HttpContext items.
-                    // We need the Bearer token to find the cache key.
-                    await existingHandler(context).ConfigureAwait(false);
+            //        // NOTE: Since OnTokenValidated will be called multiple times, it might be a good idea to filter what operation will trigger the insert of 
+            //        // MsalAccountActivity.
 
-                    // NOTE: Since OnTokenValidated will be called multiple times, it might be a good idea to filter what operation will trigger the insert of 
-                    // MsalAccountActivity.
+            //        var tokenAcquisition = context.HttpContext.RequestServices.GetRequiredService<ITokenAcquisition>();
+            //        var cacheProvider = context.HttpContext.RequestServices.GetRequiredService<IMsalTokenCacheProvider>();
+            //        var appOptions = new ConfidentialClientApplicationOptions();
 
-                    var tokenAcquisition = context.HttpContext.RequestServices.GetRequiredService<ITokenAcquisition>();
-                    var cacheProvider = context.HttpContext.RequestServices.GetRequiredService<IMsalTokenCacheProvider>();
-                    var appOptions = new ConfidentialClientApplicationOptions();
+            //        Configuration.Bind("AzureAd", appOptions);
 
-                    Configuration.Bind("AzureAd", appOptions);
+            //        var app = ConfidentialClientApplicationBuilder.Create(appOptions.ClientId)
+            //                    .WithAuthority(options.Authority)
+            //                    .WithClientSecret(appOptions.ClientSecret)
+            //                    .Build();
 
-                    var app = ConfidentialClientApplicationBuilder.Create(appOptions.ClientId)
-                                .WithAuthority(options.Authority)
-                                .WithClientSecret(appOptions.ClientSecret)
-                                .Build();
+            //        await cacheProvider.InitializeAsync(app.UserTokenCache);
 
-                    await cacheProvider.InitializeAsync(app.UserTokenCache);
+            //        // Bearer token from the client app, used as cache key
+            //        var bearerToken = context.SecurityToken as JwtSecurityToken;
 
-                    // Bearer token from the client app, used as cache key
-                    var bearerToken = context.SecurityToken as JwtSecurityToken;
+            //        // It only gets an IAccount after a Graph call has been made
+            //        var accounts = await app.GetAccountsAsync().ConfigureAwait(false);
 
-                    // It only gets an IAccount after a Graph call has been made
-                    var accounts = await app.GetAccountsAsync().ConfigureAwait(false);
-
-                    if (bearerToken != null && accounts.Count() > 0)
-                    {
-                        // The SQL token cache provided on Microsoft.Identity.Web uses the bearer token signature as the cache key when it comes to OBO.
-                        // Thus, if the Access Token from the client app gets changed for the same user, a new record will be saved on MsalAccountActivity
-                        // table for that same user, but the cache key column will be different. 
-                        // You might want to consider deleting old records from this table eventually.
-                        var accountActivity = new MsalAccountActivity(accounts.First(), bearerToken.RawSignature);
-                        var repo = context.HttpContext.RequestServices.GetRequiredService<IMsalAccountActivityRepository>();
-                        await repo.UpsertActivity(accountActivity);
-                    }
-                };
-            });
+            //        if (bearerToken != null && accounts.Count() > 0)
+            //        {
+            //            // The SQL token cache provided on Microsoft.Identity.Web uses the bearer token signature as the cache key when it comes to OBO.
+            //            // Thus, if the Access Token from the client app gets changed for the same user, a new record will be saved on MsalAccountActivity
+            //            // table for that same user, but the cache key column will be different. 
+            //            // You might want to consider deleting old records from this table eventually.
+            //            var accountActivity = new MsalAccountActivity(accounts.First(), bearerToken.RawSignature);
+            //            var repo = context.HttpContext.RequestServices.GetRequiredService<IMsalAccountActivityRepository>();
+            //            await repo.UpsertActivity(accountActivity);
+            //        }
+            //    };
+            //});
 
             services.AddDistributedSqlServerCache(options =>
             {

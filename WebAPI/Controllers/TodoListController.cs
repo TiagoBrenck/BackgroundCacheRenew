@@ -99,7 +99,7 @@ namespace WebAPI.Controllers
             }
             catch (MsalUiRequiredException ex)
             {
-                _tokenAcquisition.ReplyForbiddenWithWwwAuthenticateHeader(scopes, ex);
+                await _tokenAcquisition.ReplyForbiddenWithWwwAuthenticateHeaderAsync(scopes, ex).ConfigureAwait(false);
                 return string.Empty;
             }
         }
